@@ -1,13 +1,15 @@
 ﻿# LASS Python Plugin
 #
-# Author: jim60105
+# Author:   陳鈞 Jim CHEN
+#           jim60105@gmail.com
+# Github:   https://github.com/jim60105/domoticz-LASS
 #
 """
-<plugin key="LASS" name="LASS" author="jim60105" version="1.0.0" externallink="https://www.facebook.com/groups/LASSnet/">
+<plugin key="LASS" name="LASS - Location Aware Sensing System" author="jim60105" version="18.01.10.0" externallink="https://paper.dropbox.com/doc/LASS-README-2c1MBX2SHK8eyLwDj1vfB">
     <params>
         <param field="Mode1" label="LASS_ID" width="80px" required="true" default="FT1_389"/>
         
-        <param field="Mode6" label="Update Rate(Min)" width="30px" required="true" default="10"/>
+        <param field="Mode2" label="Update Rate(Min)" width="30px" required="true" default="10"/>
     </params>
 </plugin>
 """
@@ -20,67 +22,70 @@ class BasePlugin:
     def __init__(self):
         return
     def onStart(self):
-        Domoticz.Debugging(1)
-        self.repeatTime = int(Parameters["Mode6"])
+        #Domoticz.Debugging(1)
+        self.repeatTime = int(Parameters["Mode2"])*6
         self.intervalTime = self.repeatTime
         self.LASSURL = "https://pm25.lass-net.org"
         
         self.httpRequest()
+        while (len(self.Response['feeds']) == 0):
+            Domoticz.Error("LASS returned an Empty Response. Retrying...")
+            self.httpRequest()
         self.sensor = self.Response['feeds'][0]['LASS']
         self.sensorList = []
         # dust
-        if ( 1 not in Devices):  
-            if ( 's_d0' in self.sensor):
-                Domoticz.Device(Name=Parameters["Mode1"] + " - PM2.5",  Unit=1, TypeName="Custom", Options={"Custom":"1;μg/m³"}, Used=1).Create()
-                self.sensorList.append(['s_d0','1'])
-        if ( 2 not in Devices):
-            if ( 's_d1' in self.sensor):
-                Domoticz.Device(Name=Parameters["Mode1"] + " - PM10",  Unit=2, TypeName="Custom", Options={"Custom":"1;μg/m³"}, Used=1).Create()
-                self.sensorList.append(['s_d1','2'])
-        if ( 3 not in Devices):
-            if ( 's_d2' in self.sensor):
-                Domoticz.Device(Name=Parameters["Mode1"] + " - PM1",  Unit=3, TypeName="Custom", Options={"Custom":"1;μg/m³"}, Used=1).Create()
-                self.sensorList.append(['s_d2','3'])
+        if ( 's_d0' in self.sensor):
+            if ( 1 not in Devices):
+                Domoticz.Device(Name="[LASS]"+Parameters["Mode1"] + " PM2.5",  Unit=1, TypeName="Custom", Options={"Custom":"1;μg/m³"}, Used=1).Create()
+            self.sensorList.append(['s_d0',1])
+        if ( 's_d1' in self.sensor):
+            if ( 2 not in Devices):
+                Domoticz.Device(Name="[LASS]"+Parameters["Mode1"] + " PM10",  Unit=2, TypeName="Custom", Options={"Custom":"1;μg/m³"}, Used=1).Create()
+            self.sensorList.append(['s_d1',2])
+        if ( 's_d2' in self.sensor):
+            if ( 3 not in Devices):
+                Domoticz.Device(Name="[LASS]"+Parameters["Mode1"] + " PM1",  Unit=3, TypeName="Custom", Options={"Custom":"1;μg/m³"}, Used=1).Create()
+            self.sensorList.append(['s_d2',3])
         
         # baro
-        if ( 4 not in Devices):  
-            for i in range(0,2):
-                if ( 's_b'+str(i) in self.sensor):
-                    Domoticz.Device(Name=Parameters["Mode1"] + " - Barometer",  Unit=4, TypeName="Custom", Options={"Custom":"1;μg/m³"}, Used=1).Create()
-                    self.sensorList.append(['s_b'+str(i),'4'])
-                    break
+        for i in range(0,2):
+            if ( 's_b'+str(i) in self.sensor):
+                if ( 4 not in Devices):
+                    Domoticz.Device(Name="[LASS]"+Parameters["Mode1"] + " Barometer",  Unit=4, TypeName="Custom", Options={"Custom":"1;μg/m³"}, Used=1).Create()
+                self.sensorList.append(['s_b'+str(i),4])
+                break
         
         # humid
-        if ( 5 not in Devices):  
-            for i in range(0,5):
-                if ( 's_h'+str(i) in self.sensor):
-                    Domoticz.Log('5')
-                    Domoticz.Device(Name=Parameters["Mode1"] + " - Humidity",  Unit=5, TypeName="Custom", Options={"Custom":"1;%"}, Used=1).Create()
-                    self.sensorList.append(['s_h'+str(i),'5'])
-                    break
+        for i in range(0,5):
+            if ( 's_h'+str(i) in self.sensor):
+                if ( 5 not in Devices):
+                    Domoticz.Device(Name="[LASS]"+Parameters["Mode1"] + " Humidity",  Unit=5, TypeName="Custom", Options={"Custom":"1;%"}, Used=1).Create()
+                self.sensorList.append(['s_h'+str(i),5])
+                break
         
         # temperature
-        if ( 6 not in Devices):  
-            for i in range(0,5):
-                if ( 's_t'+str(i) in self.sensor):
-                    Domoticz.Device(Name=Parameters["Mode1"] + " - Temperature",  Unit=6, TypeName="Custom", Options={"Custom":"1;℃"}, Used=1).Create()
-                    self.sensorList.append(['s_t'+str(i),'6'])
-                    break
+        for i in range(0,5):
+            if ( 's_t'+str(i) in self.sensor):
+                if ( 6 not in Devices):
+                    Domoticz.Device(Name="[LASS]"+Parameters["Mode1"] + " Temperature",  Unit=6, TypeName="Custom", Options={"Custom":"1;℃"}, Used=1).Create()
+                self.sensorList.append(['s_t'+str(i),6])
+                break
         
         # gas
         gasList = ['NH3','CO','NO2','C3H8','C4H10','CH4','H2','C2H5OH','CO2']
         for i in range(7,15):
-            if ( i not in Devices): 
-                if ( 's_g'+str(i) in self.sensor):
-                    Domoticz.Device(Name=Parameters["Mode1"] + " - " + gasList[i-7],  Unit=i, TypeName="Custom", Options={"Custom":"1;μg/m³"}, Used=1).Create()
-                    self.sensorList.append(['s_g'+str(i),str(i)])
-                    
-        if ( 16 not in Devices): 
-            if ( 's_gg' in self.sensor):
-                Domoticz.Device(Name=Parameters["Mode1"] + " - TVOC",  Unit=16, TypeName="Custom", Options={"Custom":"1;μg/m³"}, Used=1).Create()
-                self.sensorList.append(['s_gg','16'])
+            if ( 's_g'+str(i) in self.sensor):
+                if ( i not in Devices):
+                    Domoticz.Device(Name="[LASS]"+Parameters["Mode1"] + " " + gasList[i-7],  Unit=i, TypeName="Custom", Options={"Custom":"1;μg/m³"}, Used=1).Create()
+                self.sensorList.append(['s_g'+str(i),i])
         
-        Domoticz.Heartbeat(60)
+        if ( 's_gg' in self.sensor):
+            if ( 16 not in Devices):
+                Domoticz.Device(Name="[LASS]"+Parameters["Mode1"] + " TVOC",  Unit=16, TypeName="Custom", Options={"Custom":"1;μg/m³"}, Used=1).Create()
+            self.sensorList.append(['s_gg',16])
+        
+        Domoticz.Heartbeat(10)
+        Domoticz.Log("SensorExist: "+str(self.sensorList))
         self.httpConn = Domoticz.Connection(Name="httpConn", Transport="TCP/IP", Protocol="HTTP", Address="pm25.lass-net.org", Port="443")
         self.httpConn.Connect()
     def onStop(self):
@@ -88,18 +93,20 @@ class BasePlugin:
 
     def onConnect(self, Connection, Status, Description):
         if (Status == 0):
-            Domoticz.Log("Connected successfully.")
+            Domoticz.Debug("Connected successfully.")
             self.httpConn.Disconnect()
             self.httpRequest()
             if (self.Status == 200):
-                Domoticz.Log("Good Response received from LASS.")
-                
-                for index in range(len(self.sensorList)):
-                    if self.sensorList[index][0] in self.Response['feeds'][0]['LASS']:
-                        self.UpdateDevice(int(self.sensorList[index][1]),0,self.Response['feeds'][0]['LASS'][self.sensorList[index][0]])
-                        
+                if len(self.Response['feeds']) > 0:
+                    Domoticz.Log("Good Response received from LASS.")
+                    for index in range(len(self.sensorList)):
+                        if self.sensorList[index][0] in self.Response['feeds'][0]['LASS']:
+                            self.UpdateDevice(self.sensorList[index][1],0,self.Response['feeds'][0]['LASS'][self.sensorList[index][0]])
+                else:
+                    Domoticz.Error("LASS returned an Empty Response. Retrying...")
+                    self.httpConn.Connect()
             elif (self.Status == 302):
-                Domoticz.Log("LASS returned a Page Moved Error.")
+                Domoticz.Error("LASS returned a Page Moved Error.")
             elif (self.Status == 400):
                 Domoticz.Error("LASS returned a Bad Request Error.")
             elif (self.Status == 500):
@@ -116,7 +123,7 @@ class BasePlugin:
         Domoticz.Debug("onCommand called for Unit " + str(Unit) + ": Parameter '" + str(Command) + "', Level: " + str(Level))
 
     def onDisconnect(self, Connection):
-        Domoticz.Log("onDisconnect called for connection to: "+Connection.Address+":"+Connection.Port)
+        Domoticz.Debug("onDisconnect called for connection to: "+Connection.Address+":"+Connection.Port)
 
     def onHeartbeat(self):
         if (self.httpConn.Connecting() or self.httpConn.Connected()):
@@ -124,16 +131,17 @@ class BasePlugin:
         else:
             self.intervalTime += 1
             if self.intervalTime >= self.repeatTime:
+                Domoticz.Debug("onHeartbeat called, Connection is dead.")
                 self.intervalTime = 0
                 self.httpConn.Connect()
     def httpRequest(self):
         r = urllib.request.urlopen(self.LASSURL+'/data/last.php?device_id='+Parameters["Mode1"])
         Data = r.read()
         strData = str(Data)
-        Domoticz.Log(strData)
+        Domoticz.Debug(strData)
 
         self.Response = json.loads(Data)
-        DumpHTTPResponseToLog(self.Response)
+        #DumpHTTPResponseToLog(self.Response)
         self.Status = int(r.getcode())
         return
     def UpdateDevice(self, Unit, nValue, sValue):
