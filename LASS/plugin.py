@@ -5,9 +5,9 @@
 # Github:   https://github.com/jim60105/domoticz-LASS
 #
 """
-<plugin key="LASS" name="LASS - Location Aware Sensing System" author="jim60105" version="18.01.10.0" externallink="https://paper.dropbox.com/doc/LASS-README-2c1MBX2SHK8eyLwDj1vfB">
+<plugin key="LASS" name="LASS - Location Aware Sensing System" author="jim60105" version="18.01.11.0" externallink="https://github.com/jim60105/domoticz-LASS">
     <params>
-        <param field="Mode1" label="LASS_ID" width="80px" required="true" default="FT1_389"/>
+        <param field="Mode1" label="LASS_ID" width="80px" required="true"/>
         
         <param field="Mode2" label="Update Rate(Min)" width="30px" required="true" default="10"/>
     </params>
@@ -27,31 +27,55 @@ class BasePlugin:
         self.intervalTime = self.repeatTime
         self.LASSURL = "https://pm25.lass-net.org"
         
+        Domoticz.Debug('Start loading and Creating icons.')
+        # icon
+        if ("LASSPM25" not in Images):
+            Domoticz.Image('PM25.zip').Create()
+        if ("LASSPM10" not in Images):
+            Domoticz.Image('PM10.zip').Create()
+        if ("LASSPM1" not in Images):
+            Domoticz.Image('PM1.zip').Create()
+        if ("LASSPercentage" not in Images):
+            Domoticz.Image('Percentage.zip').Create()
+        if ("LASSCelsius" not in Images):
+            Domoticz.Image('Celsius.zip').Create()
+        
         self.httpRequest()
         while (len(self.Response['feeds']) == 0):
             Domoticz.Error("LASS returned an Empty Response. Retrying...")
             self.httpRequest()
-        self.sensor = self.Response['feeds'][0]['LASS']
+            
+        self.LASSMachineList = ['LASS', 'AirBox', 'AirBox2', 'LASS4U', 'MAPS']
+        for m in self.LASSMachineList:
+            Domoticz.Debug("Try type"+m)
+            if ( m in self.Response['feeds'][0]):
+                self.machineType = m
+                break
+        else:
+            Domoticz.Error("Can't set machineType: "+str(self.Response['feeds'][0]))
+        self.sensor = self.Response['feeds'][0][self.machineType]
         self.sensorList = []
+        
+        Domoticz.Debug('Start adding sensors.')
         # dust
         if ( 's_d0' in self.sensor):
             if ( 1 not in Devices):
-                Domoticz.Device(Name="[LASS]"+Parameters["Mode1"] + " PM2.5",  Unit=1, TypeName="Custom", Options={"Custom":"1;μg/m³"}, Used=1).Create()
+                Domoticz.Device(Name="["+self.machineType+"]" + " PM2.5",  Unit=1, TypeName="Custom", Options={"Custom":"1;μg/m³"}, Used=1, Image = Images['LASSPM25'].ID).Create()
             self.sensorList.append(['s_d0',1])
         if ( 's_d1' in self.sensor):
             if ( 2 not in Devices):
-                Domoticz.Device(Name="[LASS]"+Parameters["Mode1"] + " PM10",  Unit=2, TypeName="Custom", Options={"Custom":"1;μg/m³"}, Used=1).Create()
+                Domoticz.Device(Name="["+self.machineType+"]" + " PM10",  Unit=2, TypeName="Custom", Options={"Custom":"1;μg/m³"}, Used=1, Image = Images['LASSPM10'].ID).Create()
             self.sensorList.append(['s_d1',2])
         if ( 's_d2' in self.sensor):
             if ( 3 not in Devices):
-                Domoticz.Device(Name="[LASS]"+Parameters["Mode1"] + " PM1",  Unit=3, TypeName="Custom", Options={"Custom":"1;μg/m³"}, Used=1).Create()
+                Domoticz.Device(Name="["+self.machineType+"]" + " PM1",  Unit=3, TypeName="Custom", Options={"Custom":"1;μg/m³"}, Used=1, Image = Images['LASSPM1'].ID).Create()
             self.sensorList.append(['s_d2',3])
         
         # baro
         for i in range(0,2):
             if ( 's_b'+str(i) in self.sensor):
                 if ( 4 not in Devices):
-                    Domoticz.Device(Name="[LASS]"+Parameters["Mode1"] + " Barometer",  Unit=4, TypeName="Custom", Options={"Custom":"1;μg/m³"}, Used=1).Create()
+                    Domoticz.Device(Name="["+self.machineType+"]" + " Barometer",  Unit=4, TypeName="Custom", Options={"Custom":"1;μg/m³"}, Used=1).Create()
                 self.sensorList.append(['s_b'+str(i),4])
                 break
         
@@ -59,7 +83,7 @@ class BasePlugin:
         for i in range(0,5):
             if ( 's_h'+str(i) in self.sensor):
                 if ( 5 not in Devices):
-                    Domoticz.Device(Name="[LASS]"+Parameters["Mode1"] + " Humidity",  Unit=5, TypeName="Custom", Options={"Custom":"1;%"}, Used=1).Create()
+                    Domoticz.Device(Name="["+self.machineType+"]" + " Humidity",  Unit=5, TypeName="Custom", Options={"Custom":"1;%"}, Used=1, Image = Images['LASSPercentage'].ID).Create()
                 self.sensorList.append(['s_h'+str(i),5])
                 break
         
@@ -67,7 +91,7 @@ class BasePlugin:
         for i in range(0,5):
             if ( 's_t'+str(i) in self.sensor):
                 if ( 6 not in Devices):
-                    Domoticz.Device(Name="[LASS]"+Parameters["Mode1"] + " Temperature",  Unit=6, TypeName="Custom", Options={"Custom":"1;℃"}, Used=1).Create()
+                    Domoticz.Device(Name="["+self.machineType+"]" + " Temperature",  Unit=6, TypeName="Custom", Options={"Custom":"1;℃"}, Used=1, Image = Images['LASSCelsius'].ID).Create()
                 self.sensorList.append(['s_t'+str(i),6])
                 break
         
@@ -76,12 +100,12 @@ class BasePlugin:
         for i in range(7,15):
             if ( 's_g'+str(i) in self.sensor):
                 if ( i not in Devices):
-                    Domoticz.Device(Name="[LASS]"+Parameters["Mode1"] + " " + gasList[i-7],  Unit=i, TypeName="Custom", Options={"Custom":"1;μg/m³"}, Used=1).Create()
+                    Domoticz.Device(Name="["+self.machineType+"]" + " " + gasList[i-7],  Unit=i, TypeName="Custom", Options={"Custom":"1;μg/m³"}, Used=1).Create()
                 self.sensorList.append(['s_g'+str(i),i])
         
         if ( 's_gg' in self.sensor):
             if ( 16 not in Devices):
-                Domoticz.Device(Name="[LASS]"+Parameters["Mode1"] + " TVOC",  Unit=16, TypeName="Custom", Options={"Custom":"1;μg/m³"}, Used=1).Create()
+                Domoticz.Device(Name="["+self.machineType+"]" + " TVOC",  Unit=16, TypeName="Custom", Options={"Custom":"1;μg/m³"}, Used=1).Create()
             self.sensorList.append(['s_gg',16])
         
         Domoticz.Heartbeat(10)
@@ -100,8 +124,8 @@ class BasePlugin:
                 if len(self.Response['feeds']) > 0:
                     Domoticz.Log("Good Response received from LASS.")
                     for index in range(len(self.sensorList)):
-                        if self.sensorList[index][0] in self.Response['feeds'][0]['LASS']:
-                            self.UpdateDevice(self.sensorList[index][1],0,self.Response['feeds'][0]['LASS'][self.sensorList[index][0]])
+                        if self.sensorList[index][0] in self.Response['feeds'][0][self.machineType]:
+                            self.UpdateDevice(self.sensorList[index][1],0,self.Response['feeds'][0][self.machineType][self.sensorList[index][0]])
                 else:
                     Domoticz.Error("LASS returned an Empty Response. Retrying...")
                     self.httpConn.Connect()
